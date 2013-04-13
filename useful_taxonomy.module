@@ -1,0 +1,179 @@
+<?php
+
+/* *********************************************************************
+ * HOOKS
+ * ****************************************************************** */
+
+
+/**
+ * Implements hook_theme().
+ */
+function useful_taxonomy_theme($existing, $type, $theme, $path) {
+  return array(
+    'useful_taxonomy_taxonomy_tree_list' => array(
+      'variables' => array('tree' => NULL, 'view_modes' => NULL),
+      'file' => 'useful_taxonomy.theme.inc',
+    ),
+  );
+}
+
+/* *********************************************************************
+ * BLOCKS
+ * ****************************************************************** */
+
+/**
+ * Implements hook_block_info().
+ *
+ *
+ */
+function useful_taxonomy_block_info() {
+  // Example to see theme implementation
+  $blocks['taxonomy-list'] = array(
+    'info' => t('Useful taxonomy : Taxonomy list'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+
+  return $blocks;
+
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ *
+ */
+function useful_taxonomy_block_view($delta = '') {
+  $block = array();
+
+  switch ($delta) {
+    case 'taxonomy-list':
+      $block = _useful_taxonomy_block_taxonomy_list();
+      break;
+  }
+  return $block;
+
+}
+
+
+function _useful_taxonomy_block_taxonomy_list() {
+  $block = array();
+
+  $items = array();
+
+  // Get only 2 first levels FROM vocabulary vid = 1.
+  $tree = _taxonomy_get_nested_tree(1, 2);
+
+  // First level will be rendered with teaser view mode.
+  // Second level will be rendered as link.
+  $view_modes = array(
+    'teaser',
+    'link',
+  );
+
+  // Render block.
+  $block['content'] = array(
+    '#theme' => 'useful_taxonomy_taxonomy_tree_list',
+    '#tree' => $tree,
+    '#view_modes' => $view_modes,
+  );
+
+  return $block;
+}
+
+
+/* *********************************************************************
+ * HELPERS
+ * ****************************************************************** */
+
+/**
+ * Function from http://api.drupal.org/api/drupal/modules--taxonomy--taxonomy.module/function/taxonomy_get_tree/6 to get real taxonomy tree
+ *
+ */
+function _taxonomy_get_nested_tree($terms = array(), $max_depth = NULL, $parent = 0, $parents_index = array(), $depth = 0) {
+  $return = array();
+
+  if (!is_array($terms)) {
+    $terms_tree = taxonomy_get_tree($terms, 0, NULL, TRUE);
+    $terms = array();
+    foreach($terms_tree as $term) {
+      $terms[$term->tid] = $term;
+    }
+  }
+
+  foreach($terms as $term) {
+
+    $key = $term->name;
+
+    $termCorresp[$term->tid] = $term->tid;
+    foreach($term->parents as $term_parent) {
+      if ($term_parent == $parent) {
+        $return[$key] = $term;
+      }
+      else {
+        $parents_index[$termCorresp[$term_parent]][$key] = $term;
+      }
+    }
+  }
+  if(!empty($return)){
+    foreach($return as &$term) {
+      if (isset($parents_index[$term->tid]) && (is_null($max_depth) || $depth < $max_depth)) {
+        $term->children = _taxonomy_get_nested_tree($parents_index[$term->tid], $max_depth, $term->tid, $parents_index, $depth + 1);
+      }
+    }
+  }
+  return $return;
+}
+
+/**
+ * Convert nested taxonomy tree as list renderable by item list
+ * @param $terms
+ * @return array
+ */
+function _taxonomy_nested_tree_as_list($tree, $view_modes = 'label') {
+  $items = array();
+
+  // Get current terms level and convert it
+  foreach ($tree as $term) {
+    $children = array();
+    // Convert children of current term
+    if (isset ($term->children) && !empty($term->children)) {
+      $children = _taxonomy_nested_tree_as_list($term->children, $view_modes);
+    }
+
+    if (is_array($view_modes) && isset($view_modes[$term->depth]) && !empty($view_modes[$term->depth])) {
+      $view_mode = $view_modes[$term->depth];
+    }
+    // If it's not an array, or if view mode not defined, use default
+    else {
+      // If it's not an array, use view mode as default
+      if (!is_array($view_modes) && !empty($view_modes)) {
+        $view_mode = $view_modes;
+      }
+      else {
+        $view_mode = 'label';
+      }
+    }
+
+    // If view mode is defined, use it
+    switch ($view_mode) {
+      case 'link':
+        $data = l($term->name, 'taxonomy/term/' . $term->tid);
+        break;
+      case 'label':
+        $data = $term->name;
+        break;
+      default:
+        $data = render(taxonomy_term_view($term, $view_mode));
+        break;
+    }
+
+    if (!empty($data)) {
+      $items[] = array(
+        'data' => $data,
+        'children' => $children,
+      );
+    }
+  }
+
+  return $items;
+}
