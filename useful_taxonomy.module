@@ -17,6 +17,21 @@ function useful_taxonomy_theme($existing, $type, $theme, $path) {
   );
 }
 
+/**
+ * Implements hook_entity_info_alter().
+ *
+ *
+ */
+function useful_taxonomy_entity_info_alter(&$entity_info) {
+
+  // Add teaser view mode
+  $entity_info['taxonomy_term']['view modes']['teaser'] = array(
+    'label' => t('Teaser'),
+    'custom settings' => TRUE,
+  );
+
+}
+
 /* *********************************************************************
  * BLOCKS
  * ****************************************************************** */
