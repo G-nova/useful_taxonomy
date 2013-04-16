@@ -178,7 +178,8 @@ function _taxonomy_nested_tree_as_list($tree, $view_modes = 'label') {
         $data = $term->name;
         break;
       default:
-        $data = render(taxonomy_term_view($term, $view_mode));
+        $term_view = taxonomy_term_view($term, $view_mode);
+        $data = render($term_view);
         break;
     }
 
