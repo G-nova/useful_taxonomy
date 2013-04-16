@@ -23,6 +23,9 @@ function theme_useful_taxonomy_taxonomy_tree_list($vars) {
   $list = array(
     '#theme' => 'item_list',
     '#items' => $items,
+    '#attributes' => array(
+      'class' => array('taxonomy-tree-list')
+    )
   );
 
   return render($list);
